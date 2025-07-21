@@ -28,6 +28,12 @@ export interface Task {
   dependencies?: string[]
   auditTrail: AuditEntry[]
   proposedChanges?: TaskProposal
+  // Hierarchical properties
+  parentId?: string
+  level: number // 0 = main activity, 1+ = subactivity
+  isExpanded?: boolean
+  children?: Task[]
+  type: "main" | "sub"
 }
 
 export interface AuditEntry {
@@ -74,18 +80,21 @@ export default function ProjectManager() {
   const [activeTab, setActiveTab] = useState("gantt")
   const [currentTheme, setCurrentTheme] = useState<DesignTheme>("default")
 
-  // Sample data for demonstration
+  // Sample hierarchical data for demonstration
   const sampleTasks: Task[] = [
     {
       id: "1",
       name: "Project Planning",
       startDate: new Date("2024-01-01"),
-      endDate: new Date("2024-01-15"),
-      duration: 14,
-      progress: 100,
-      assignee: "John Doe",
+      endDate: new Date("2024-01-20"),
+      duration: 20,
+      progress: 85,
+      assignee: "Project Manager",
       priority: "High",
-      status: "Completed",
+      status: "In Progress",
+      level: 0,
+      type: "main",
+      isExpanded: true,
       auditTrail: [
         {
           id: "audit-1",
@@ -96,68 +105,256 @@ export default function ProjectManager() {
           newValue: "In Progress",
           reason: "Project kickoff",
         },
+      ],
+    },
+    {
+      id: "1.1",
+      name: "Define Project Scope",
+      startDate: new Date("2024-01-01"),
+      endDate: new Date("2024-01-05"),
+      duration: 5,
+      progress: 100,
+      assignee: "John Doe",
+      priority: "High",
+      status: "Completed",
+      parentId: "1",
+      level: 1,
+      type: "sub",
+      auditTrail: [
         {
-          id: "audit-2",
-          timestamp: new Date("2024-01-15"),
+          id: "audit-1.1",
+          timestamp: new Date("2024-01-05"),
           type: "manual",
           field: "status",
           oldValue: "In Progress",
           newValue: "Completed",
-          reason: "All planning documents finalized",
+          reason: "Scope document approved",
+        },
+      ],
+    },
+    {
+      id: "1.2",
+      name: "Create Project Charter",
+      startDate: new Date("2024-01-06"),
+      endDate: new Date("2024-01-12"),
+      duration: 7,
+      progress: 90,
+      assignee: "Jane Smith",
+      priority: "High",
+      status: "In Progress",
+      parentId: "1",
+      level: 1,
+      type: "sub",
+      auditTrail: [
+        {
+          id: "audit-1.2",
+          timestamp: new Date("2024-01-06"),
+          type: "manual",
+          field: "status",
+          oldValue: "Not Started",
+          newValue: "In Progress",
+          reason: "Started charter development",
+        },
+      ],
+    },
+    {
+      id: "1.3",
+      name: "Stakeholder Analysis",
+      startDate: new Date("2024-01-10"),
+      endDate: new Date("2024-01-20"),
+      duration: 10,
+      progress: 60,
+      assignee: "Mike Johnson",
+      priority: "Medium",
+      status: "In Progress",
+      parentId: "1",
+      level: 1,
+      type: "sub",
+      auditTrail: [
+        {
+          id: "audit-1.3",
+          timestamp: new Date("2024-01-10"),
+          type: "manual",
+          field: "status",
+          oldValue: "Not Started",
+          newValue: "In Progress",
+          reason: "Stakeholder interviews started",
         },
       ],
     },
     {
       id: "2",
       name: "Requirements Gathering",
-      startDate: new Date("2024-01-10"),
-      endDate: new Date("2024-01-25"),
-      duration: 15,
-      progress: 80,
-      assignee: "Jane Smith",
+      startDate: new Date("2024-01-15"),
+      endDate: new Date("2024-02-10"),
+      duration: 26,
+      progress: 40,
+      assignee: "Business Analyst",
       priority: "High",
       status: "In Progress",
+      level: 0,
+      type: "main",
+      isExpanded: true,
       auditTrail: [
         {
-          id: "audit-3",
-          timestamp: new Date("2024-01-10"),
+          id: "audit-2",
+          timestamp: new Date("2024-01-15"),
           type: "manual",
           field: "status",
           oldValue: "Not Started",
           newValue: "In Progress",
-          reason: "Started stakeholder interviews",
+          reason: "Requirements phase started",
+        },
+      ],
+    },
+    {
+      id: "2.1",
+      name: "Functional Requirements",
+      startDate: new Date("2024-01-15"),
+      endDate: new Date("2024-01-25"),
+      duration: 10,
+      progress: 80,
+      assignee: "Sarah Wilson",
+      priority: "High",
+      status: "In Progress",
+      parentId: "2",
+      level: 1,
+      type: "sub",
+      auditTrail: [
+        {
+          id: "audit-2.1",
+          timestamp: new Date("2024-01-15"),
+          type: "manual",
+          field: "status",
+          oldValue: "Not Started",
+          newValue: "In Progress",
+          reason: "Functional analysis started",
+        },
+      ],
+    },
+    {
+      id: "2.2",
+      name: "Non-Functional Requirements",
+      startDate: new Date("2024-01-20"),
+      endDate: new Date("2024-02-05"),
+      duration: 16,
+      progress: 30,
+      assignee: "Tom Brown",
+      priority: "Medium",
+      status: "In Progress",
+      parentId: "2",
+      level: 1,
+      type: "sub",
+      auditTrail: [
+        {
+          id: "audit-2.2",
+          timestamp: new Date("2024-01-20"),
+          type: "manual",
+          field: "status",
+          oldValue: "Not Started",
+          newValue: "In Progress",
+          reason: "Performance requirements analysis",
+        },
+      ],
+    },
+    {
+      id: "2.3",
+      name: "Requirements Documentation",
+      startDate: new Date("2024-02-01"),
+      endDate: new Date("2024-02-10"),
+      duration: 9,
+      progress: 0,
+      assignee: "Lisa Davis",
+      priority: "Medium",
+      status: "Not Started",
+      parentId: "2",
+      level: 1,
+      type: "sub",
+      auditTrail: [
+        {
+          id: "audit-2.3",
+          timestamp: new Date("2024-02-01"),
+          type: "system",
+          field: "created",
+          oldValue: null,
+          newValue: "task created",
+          reason: "Initial task creation",
         },
       ],
     },
     {
       id: "3",
       name: "Design Phase",
-      startDate: new Date("2024-01-20"),
-      endDate: new Date("2024-02-10"),
-      duration: 21,
-      progress: 45,
-      assignee: "Mike Johnson",
-      priority: "Medium",
+      startDate: new Date("2024-02-05"),
+      endDate: new Date("2024-03-15"),
+      duration: 38,
+      progress: 15,
+      assignee: "Design Team",
+      priority: "High",
       status: "Delayed",
+      level: 0,
+      type: "main",
+      isExpanded: false,
       auditTrail: [
         {
-          id: "audit-4",
-          timestamp: new Date("2024-01-20"),
+          id: "audit-3",
+          timestamp: new Date("2024-02-05"),
+          type: "meeting",
+          field: "status",
+          oldValue: "Not Started",
+          newValue: "Delayed",
+          reason: "Waiting for requirements completion",
+          meetingId: "meeting-1",
+        },
+      ],
+    },
+    {
+      id: "3.1",
+      name: "UI/UX Design",
+      startDate: new Date("2024-02-05"),
+      endDate: new Date("2024-02-25"),
+      duration: 20,
+      progress: 25,
+      assignee: "Alex Chen",
+      priority: "High",
+      status: "Delayed",
+      parentId: "3",
+      level: 1,
+      type: "sub",
+      auditTrail: [
+        {
+          id: "audit-3.1",
+          timestamp: new Date("2024-02-05"),
           type: "manual",
           field: "status",
           oldValue: "Not Started",
-          newValue: "In Progress",
-          reason: "Design work started",
-        },
-        {
-          id: "audit-5",
-          timestamp: new Date("2024-02-01"),
-          type: "meeting",
-          field: "status",
-          oldValue: "In Progress",
           newValue: "Delayed",
-          reason: "Waiting for client feedback on mockups",
-          meetingId: "meeting-1",
+          reason: "Waiting for requirements",
+        },
+      ],
+    },
+    {
+      id: "3.2",
+      name: "System Architecture",
+      startDate: new Date("2024-02-10"),
+      endDate: new Date("2024-03-05"),
+      duration: 23,
+      progress: 10,
+      assignee: "David Kim",
+      priority: "High",
+      status: "Not Started",
+      parentId: "3",
+      level: 1,
+      type: "sub",
+      auditTrail: [
+        {
+          id: "audit-3.2",
+          timestamp: new Date("2024-02-10"),
+          type: "system",
+          field: "created",
+          oldValue: null,
+          newValue: "task created",
+          reason: "Initial task creation",
         },
       ],
     },
@@ -178,28 +375,38 @@ export default function ProjectManager() {
         const worksheet = workbook.Sheets[sheetName]
         const jsonData = XLSX.utils.sheet_to_json(worksheet)
 
-        const parsedTasks: Task[] = jsonData.map((row: any, index: number) => ({
-          id: (index + 1).toString(),
-          name: row["Task Name"] || row["Name"] || row["Task"] || `Task ${index + 1}`,
-          startDate: row["Start Date"] ? new Date(row["Start Date"]) : new Date(),
-          endDate: row["End Date"] ? new Date(row["End Date"]) : new Date(),
-          duration: row["Duration"] || 1,
-          progress: row["Progress"] || row["% Complete"] || 0,
-          assignee: row["Assignee"] || row["Resource"] || "Unassigned",
-          priority: row["Priority"] || "Medium",
-          status: row["Status"] || "Not Started",
-          auditTrail: [
-            {
-              id: `audit-${index + 1}`,
-              timestamp: new Date(),
-              type: "system",
-              field: "imported",
-              oldValue: null,
-              newValue: "imported from Excel",
-              reason: "Initial import",
-            },
-          ],
-        }))
+        const parsedTasks: Task[] = jsonData.map((row: any, index: number) => {
+          const taskName = row["Task Name"] || row["Name"] || row["Task"] || `Task ${index + 1}`
+          const level = row["Level"] || (taskName.startsWith("  ") ? 1 : 0)
+          const parentId = row["Parent ID"] || (level > 0 ? Math.floor(index / 2).toString() : undefined)
+
+          return {
+            id: (index + 1).toString(),
+            name: taskName.trim(),
+            startDate: row["Start Date"] ? new Date(row["Start Date"]) : new Date(),
+            endDate: row["End Date"] ? new Date(row["End Date"]) : new Date(),
+            duration: row["Duration"] || 1,
+            progress: row["Progress"] || row["% Complete"] || 0,
+            assignee: row["Assignee"] || row["Resource"] || "Unassigned",
+            priority: row["Priority"] || "Medium",
+            status: row["Status"] || "Not Started",
+            parentId,
+            level,
+            type: level === 0 ? "main" : "sub",
+            isExpanded: true,
+            auditTrail: [
+              {
+                id: `audit-${index + 1}`,
+                timestamp: new Date(),
+                type: "system",
+                field: "imported",
+                oldValue: null,
+                newValue: "imported from Excel",
+                reason: "Initial import",
+              },
+            ],
+          }
+        })
 
         setTasks(parsedTasks)
       } catch (error) {
@@ -213,7 +420,27 @@ export default function ProjectManager() {
 
   const loadSampleData = () => {
     setTasks(sampleTasks)
-    setFileName("sample-project.xlsx")
+    setFileName("sample-hierarchical-project.xlsx")
+  }
+
+  const toggleTaskExpansion = (taskId: string) => {
+    setTasks((prev) => prev.map((task) => (task.id === taskId ? { ...task, isExpanded: !task.isExpanded } : task)))
+  }
+
+  const getVisibleTasks = () => {
+    const visibleTasks: Task[] = []
+
+    tasks.forEach((task) => {
+      if (task.level === 0) {
+        visibleTasks.push(task)
+        if (task.isExpanded) {
+          const children = tasks.filter((t) => t.parentId === task.id)
+          visibleTasks.push(...children)
+        }
+      }
+    })
+
+    return visibleTasks
   }
 
   const handleMeetingComplete = (meeting: Meeting) => {
@@ -419,7 +646,7 @@ export default function ProjectManager() {
           <div>
             <h1 className={`text-3xl font-bold ${themeClasses.accent}`}>Project Management Dashboard</h1>
             <p className="text-muted-foreground">
-              Import Excel files, record meetings, and track project progress with AI insights
+              Import Excel files, record meetings, and track hierarchical project progress with AI insights
             </p>
           </div>
           <div className="flex items-center gap-4">
@@ -438,7 +665,7 @@ export default function ProjectManager() {
             </CardTitle>
             <CardDescription className={currentTheme === "dark" ? "text-gray-300" : ""}>
               Upload an Excel file with columns: Task Name, Start Date, End Date, Duration, Progress, Assignee,
-              Priority, Status
+              Priority, Status, Level, Parent ID
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -498,18 +725,36 @@ export default function ProjectManager() {
                   <CardHeader className={themeClasses.header}>
                     <CardTitle>Project Timeline</CardTitle>
                     <CardDescription className={currentTheme === "dark" ? "text-gray-300" : ""}>
-                      Visual representation of project tasks and their timelines
+                      Hierarchical view of project tasks and their timelines
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
-                      {tasks.map((task) => {
+                    <div className="space-y-2">
+                      {getVisibleTasks().map((task) => {
                         const position = getTaskPosition(task)
+                        const isMainActivity = task.level === 0
+                        const hasChildren = tasks.some((t) => t.parentId === task.id)
+
                         return (
-                          <div key={task.id} className="space-y-2">
+                          <div key={task.id} className="space-y-1">
                             <div className="flex items-center justify-between text-sm">
                               <div className="flex items-center gap-2">
-                                <span className="font-medium">{task.name}</span>
+                                <div style={{ marginLeft: `${task.level * 20}px` }} className="flex items-center gap-2">
+                                  {isMainActivity && hasChildren && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-4 w-4 p-0"
+                                      onClick={() => toggleTaskExpansion(task.id)}
+                                    >
+                                      {task.isExpanded ? "−" : "+"}
+                                    </Button>
+                                  )}
+                                  {!isMainActivity && <div className="w-4" />}
+                                  <span className={`font-medium ${isMainActivity ? "text-lg" : "text-sm"}`}>
+                                    {task.name}
+                                  </span>
+                                </div>
                                 <Badge variant="outline" className={getStatusColor(task.status)}>
                                   {task.status}
                                 </Badge>
@@ -524,15 +769,25 @@ export default function ProjectManager() {
                               </div>
                             </div>
                             <div
-                              className={`relative h-8 rounded ${currentTheme === "dark" ? "bg-gray-700" : "bg-gray-100"}`}
+                              className={`relative rounded ${currentTheme === "dark" ? "bg-gray-700" : "bg-gray-100"}`}
+                              style={{
+                                height: isMainActivity ? "32px" : "24px",
+                                marginLeft: `${task.level * 20}px`,
+                              }}
                             >
                               <div
                                 className={`absolute h-full rounded flex items-center justify-center text-white text-xs font-medium ${
-                                  currentTheme === "modern"
-                                    ? "bg-gradient-to-r from-blue-500 to-purple-500"
-                                    : currentTheme === "dark"
-                                      ? "bg-blue-600"
-                                      : "bg-primary"
+                                  isMainActivity
+                                    ? currentTheme === "modern"
+                                      ? "bg-gradient-to-r from-blue-600 to-purple-600"
+                                      : currentTheme === "dark"
+                                        ? "bg-blue-700"
+                                        : "bg-primary"
+                                    : currentTheme === "modern"
+                                      ? "bg-gradient-to-r from-blue-400 to-purple-400"
+                                      : currentTheme === "dark"
+                                        ? "bg-blue-500"
+                                        : "bg-primary/80"
                                 }`}
                                 style={position}
                               >
@@ -549,8 +804,10 @@ export default function ProjectManager() {
 
               <TabsContent value="list" className="space-y-4">
                 <TaskManager
-                  tasks={tasks}
+                  tasks={getVisibleTasks()}
+                  allTasks={tasks}
                   onTaskUpdate={handleTaskUpdate}
+                  onToggleExpansion={toggleTaskExpansion}
                   getPriorityColor={getPriorityColor}
                   getStatusColor={getStatusColor}
                   formatDate={formatDate}
@@ -607,7 +864,8 @@ export default function ProjectManager() {
               <FileSpreadsheet className="h-12 w-12 text-muted-foreground mb-4" />
               <h3 className="text-lg font-semibold mb-2">No Project Data</h3>
               <p className="text-muted-foreground text-center mb-4">
-                Upload an Excel file or load sample data to get started with your project management dashboard.
+                Upload an Excel file or load sample data to get started with your hierarchical project management
+                dashboard.
               </p>
               <Button onClick={loadSampleData}>Load Sample Data</Button>
             </CardContent>
