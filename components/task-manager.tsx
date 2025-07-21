@@ -1,0 +1,300 @@
+"use client"
+
+import { useState } from "react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Progress } from "@/components/ui/progress"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Calendar, History, CheckCircle, XCircle, AlertTriangle, Clock, User } from "lucide-react"
+import type { Task } from "../app/page"
+import type { DesignTheme } from "@/types/design-theme" // Import DesignTheme
+
+interface TaskManagerProps {
+  tasks: Task[]
+  onTaskUpdate: (taskId: string, updates: Partial<Task>, reason: string) => void
+  getPriorityColor: (priority: string) => string
+  getStatusColor: (status: string) => string
+  formatDate: (date: Date) => string
+  theme: DesignTheme
+  themeClasses: any
+}
+
+export function TaskManager({
+  tasks,
+  onTaskUpdate,
+  getPriorityColor,
+  getStatusColor,
+  formatDate,
+  theme,
+  themeClasses,
+}: TaskManagerProps) {
+  const [editingTask, setEditingTask] = useState<string | null>(null)
+  const [updateReason, setUpdateReason] = useState("")
+
+  const handleAcceptProposal = (task: Task) => {
+    if (!task.proposedChanges) return
+
+    const updates: Partial<Task> = {}
+
+    if (task.proposedChanges.proposedStatus) {
+      updates.status = task.proposedChanges.proposedStatus
+    }
+    if (task.proposedChanges.proposedProgress !== undefined) {
+      updates.progress = task.proposedChanges.proposedProgress
+    }
+    if (task.proposedChanges.proposedEndDate) {
+      updates.endDate = task.proposedChanges.proposedEndDate
+    }
+
+    onTaskUpdate(task.id, updates, `Accepted AI proposal: ${task.proposedChanges.reason}`)
+  }
+
+  const handleRejectProposal = (task: Task) => {
+    onTaskUpdate(task.id, { proposedChanges: undefined }, "Rejected AI proposal")
+  }
+
+  const handleManualUpdate = (task: Task, field: string, value: any) => {
+    if (!updateReason.trim()) {
+      alert("Please provide a reason for the update")
+      return
+    }
+
+    onTaskUpdate(task.id, { [field]: value }, updateReason)
+    setEditingTask(null)
+    setUpdateReason("")
+  }
+
+  const getAuditIcon = (type: string) => {
+    switch (type) {
+      case "manual":
+        return <User className="h-3 w-3" />
+      case "meeting":
+        return <Calendar className="h-3 w-3" />
+      case "system":
+        return <Clock className="h-3 w-3" />
+      default:
+        return <History className="h-3 w-3" />
+    }
+  }
+
+  const getAuditColor = (type: string) => {
+    switch (type) {
+      case "manual":
+        return "text-blue-600"
+      case "meeting":
+        return "text-green-600"
+      case "system":
+        return "text-gray-600"
+      default:
+        return "text-gray-600"
+    }
+  }
+
+  return (
+    <Card className={themeClasses.card}>
+      <CardHeader className={themeClasses.header}>
+        <CardTitle>Task Management</CardTitle>
+        <CardDescription>Review AI-proposed changes and manage task details with full audit trail</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          {tasks.map((task) => (
+            <div
+              key={task.id}
+              className={`border rounded-lg p-4 space-y-4 ${theme === "dark" ? "border-gray-700" : ""}`}
+            >
+              {/* Task Header */}
+              <div className="flex items-start justify-between">
+                <div className="space-y-1">
+                  <h3 className="font-semibold">{task.name}</h3>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Calendar className="h-4 w-4" />
+                    {formatDate(task.startDate)} - {formatDate(task.endDate)}
+                    <span>({task.duration} days)</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className={`w-3 h-3 rounded-full ${getPriorityColor(task.priority)}`} />
+                  <Badge variant="outline" className={getStatusColor(task.status)}>
+                    {task.status}
+                  </Badge>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <History className="h-4 w-4 mr-2" />
+                        Audit Trail ({task.auditTrail.length})
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-80">
+                      <div className="p-2">
+                        <h4 className="font-medium mb-2">Change History</h4>
+                        <div className="space-y-2 max-h-60 overflow-y-auto">
+                          {task.auditTrail
+                            .slice()
+                            .reverse()
+                            .map((entry) => (
+                              <div key={entry.id} className="text-xs border-l-2 border-gray-200 pl-2">
+                                <div className="flex items-center gap-1 font-medium">
+                                  <span className={getAuditColor(entry.type)}>{getAuditIcon(entry.type)}</span>
+                                  <span className="capitalize">{entry.type}</span>
+                                  <span className="text-muted-foreground">{entry.timestamp.toLocaleDateString()}</span>
+                                </div>
+                                <div className="mt-1">
+                                  <span className="font-medium">{entry.field}:</span>
+                                  <span className="text-red-600 line-through ml-1">{String(entry.oldValue)}</span>
+                                  <span className="text-green-600 ml-1">{String(entry.newValue)}</span>
+                                </div>
+                                {entry.reason && <div className="text-muted-foreground mt-1">{entry.reason}</div>}
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
+
+              {/* AI Proposed Changes */}
+              {task.proposedChanges && (
+                <div
+                  className={`border rounded-lg p-3 ${
+                    theme === "dark"
+                      ? "bg-yellow-900/20 border-yellow-700"
+                      : theme === "modern"
+                        ? "bg-gradient-to-r from-yellow-50 to-amber-50 border-yellow-200"
+                        : "bg-yellow-50 border-yellow-200"
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                        <span className="font-medium text-yellow-800">AI Proposed Changes</span>
+                        <Badge variant="outline" className="text-xs">
+                          {Math.round(task.proposedChanges.confidence * 100)}% confidence
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-yellow-700">{task.proposedChanges.reason}</p>
+                      <div className="space-y-1 text-xs">
+                        {task.proposedChanges.proposedStatus && (
+                          <div>
+                            Status: <span className="font-medium">{task.status}</span> →{" "}
+                            <span className="font-medium text-yellow-800">{task.proposedChanges.proposedStatus}</span>
+                          </div>
+                        )}
+                        {task.proposedChanges.proposedProgress !== undefined && (
+                          <div>
+                            Progress: <span className="font-medium">{task.progress}%</span> →{" "}
+                            <span className="font-medium text-yellow-800">
+                              {task.proposedChanges.proposedProgress}%
+                            </span>
+                          </div>
+                        )}
+                        {task.proposedChanges.proposedEndDate && (
+                          <div>
+                            End Date: <span className="font-medium">{formatDate(task.endDate)}</span> →{" "}
+                            <span className="font-medium text-yellow-800">
+                              {formatDate(task.proposedChanges.proposedEndDate)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={() => handleAcceptProposal(task)}>
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Accept
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => handleRejectProposal(task)}>
+                        <XCircle className="h-3 w-3 mr-1" />
+                        Reject
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Task Details */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Assignee</Label>
+                  <p className="text-sm font-medium">{task.assignee}</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Priority</Label>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${getPriorityColor(task.priority)}`} />
+                    <span className="text-sm font-medium">{task.priority}</span>
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Status</Label>
+                  {editingTask === task.id ? (
+                    <div className="space-y-2">
+                      <Select
+                        defaultValue={task.status}
+                        onValueChange={(value) => handleManualUpdate(task, "status", value)}
+                      >
+                        <SelectTrigger className="h-8">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Not Started">Not Started</SelectItem>
+                          <SelectItem value="In Progress">In Progress</SelectItem>
+                          <SelectItem value="Completed">Completed</SelectItem>
+                          <SelectItem value="Delayed">Delayed</SelectItem>
+                          <SelectItem value="Blocked">Blocked</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-auto p-0 justify-start"
+                      onClick={() => setEditingTask(task.id)}
+                    >
+                      <Badge variant="outline" className={getStatusColor(task.status)}>
+                        {task.status}
+                      </Badge>
+                    </Button>
+                  )}
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Progress</Label>
+                  <div className="flex items-center gap-2">
+                    <Progress value={task.progress} className="flex-1" />
+                    <span className="text-sm font-medium">{task.progress}%</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Update Reason Input */}
+              {editingTask === task.id && (
+                <div className="space-y-2 bg-gray-50 p-3 rounded">
+                  <Label htmlFor="update-reason">Reason for Update</Label>
+                  <Textarea
+                    id="update-reason"
+                    placeholder="Explain why you're making this change..."
+                    value={updateReason}
+                    onChange={(e) => setUpdateReason(e.target.value)}
+                    className="h-20"
+                  />
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => setEditingTask(null)}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
